@@ -10,6 +10,12 @@
   values; `DrawingLabel` / `LabelFormatter` types exported. Without it the
   labels are unchanged.
 
+### Fixed
+
+- Touch: a held gesture (drawing drag, placement, brush) ended by `pointercancel`
+  left the chart's pan / zoom off and stopped the drag; it now releases on cancel,
+  keeps `touchmove` for the drag, and a second finger no longer places points.
+
 ## 0.6.3 (02/11/2026)
 
 ### Added
