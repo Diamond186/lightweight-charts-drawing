@@ -15,6 +15,7 @@ import { CandlestickSeries, createChart, type Time } from "lightweight-charts";
 import * as lwcd from "../src";
 import { cacheImage, decodeImage, DrawingManager, isAnchorable, VERSION, type Drawing, type DrawingKind, type MagnetMode } from "../src";
 import { ICONS } from "./icons";
+import { ukLabel } from "./labels-uk";
 import { TOOL_COUNT, TOOL_GROUPS, type ToolEntry } from "./tool-groups";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -59,7 +60,22 @@ async function main() {
     else url.searchParams.delete("keyboard");
     location.assign(url.toString());
   });
-  const dm = new DrawingManager(chart, series, { magnet: "off", keyboard: !keyboardOff });
+  let lang: "en" | "uk" = new URLSearchParams(location.search).get("lang") === "uk" ? "uk" : "en";
+  const langSel = $("label-lang") as HTMLSelectElement;
+  langSel.value = lang;
+  const dm = new DrawingManager(chart, series, {
+    magnet: "off",
+    keyboard: !keyboardOff,
+    formatLabel: (l) => (lang === "uk" ? ukLabel(l) : undefined),
+  });
+  langSel.addEventListener("change", () => {
+    lang = langSel.value === "uk" ? "uk" : "en";
+    const url = new URL(location.href);
+    if (lang === "uk") url.searchParams.set("lang", "uk");
+    else url.searchParams.delete("lang");
+    history.replaceState(null, "", url);
+    dm.redraw();
+  });
   Object.assign(window, { dm, chart, series, lwcd });
 
   $("version").textContent = `v${VERSION}`;

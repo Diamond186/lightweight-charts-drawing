@@ -5,6 +5,10 @@
 ### Added
 
 - `keyboard` option (`DrawingManagerOptions`): `false` adds no window key listener, so Delete / Backspace / Escape never change drawings or the selection (hosts with their own key policy).
+- `formatLabel` option (`DrawingManagerOptions`, also `Coords.formatLabel`):
+  host text for every on-canvas label (field names, numbers, dates) with raw
+  values; `DrawingLabel` / `LabelFormatter` types exported. Without it the
+  labels are unchanged.
 
 ## 0.6.3 (02/11/2026)
 

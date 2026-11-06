@@ -14,6 +14,7 @@ import type { IChartApi, ISeriesApi, ISeriesPrimitive, ISeriesPrimitiveAxisView,
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 import type { HitResult, Pt } from "../core/_shared";
 import type { Coords, OHLC } from "../core/coords";
+import type { LabelFormatter } from "../core/labels";
 import { isVisibleOnInterval, type DataPoint, type Drawing, type DrawingKind, type NewDrawing } from "../core/types";
 import { defaultStyleFor, findOverlaySpec, type OverlaySpec } from "../core/specs";
 import { hitTestKind } from "../core/kinds/hit-tests";
@@ -52,6 +53,8 @@ export type DrawingManagerOptions = {
   stayInDrawingMode?: boolean;
   /** Window key handling: Escape cascade, Delete / Backspace removal, Shift / Ctrl modifiers. Default true. false: no key listener is added. */
   keyboard?: boolean;
+  /** Label text hook: called for every label with its default text and raw numbers; return the text to draw (undefined / null = the default, "" = empty). */
+  formatLabel?: LabelFormatter;
 };
 
 export type DrawingManagerEvents = {
@@ -122,6 +125,7 @@ export class DrawingManager {
     this.opts = { magnet: "off", ...opts };
     const bars = opts.bars ?? (() => seriesBars(series));
     this.coords = makeCoords(chart, series, bars, () => [], opts.timeInfo);
+    if (opts.formatLabel) this.coords.formatLabel = opts.formatLabel;
     this.primitive = new DrawingsPrimitive(this);
     series.attachPrimitive(this.primitive as ISeriesPrimitive<Time>);
     this.el = chart.chartElement();

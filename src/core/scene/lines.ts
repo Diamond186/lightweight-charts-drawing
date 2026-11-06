@@ -7,6 +7,7 @@
  */
 import { dashFor, timeToSec, type Pt } from "../_shared";
 import type { Coords } from "../coords";
+import { labelOrDefault } from "../labels";
 import type { Drawing, DrawingStyle } from "../types";
 import { tvTextLayout } from "../kinds/tv-text";
 import type { Scene, SceneItem } from "./types";
@@ -47,39 +48,81 @@ export function tvStatRows(d: Drawing, a: Pt, b: Pt, s: DrawingStyle, coords: Co
   const digits = Math.max(0, Math.min(8, Math.round(-Math.log10(pip))));
   if (s.showPriceRange || s.showPercentPriceRange || s.showPipsPriceRange) {
     const parts: string[] = [];
+    const percent = p0.price !== 0 ? (dPrice / Math.abs(p0.price)) * 100 : null;
     if (s.showPriceRange || s.showPercentPriceRange) {
       const sub: string[] = [];
       if (s.showPriceRange) sub.push(signedFixed(dPrice, digits));
       if (s.showPercentPriceRange) {
-        const pct = p0.price !== 0 ? `${signedFixed((dPrice / Math.abs(p0.price)) * 100, 2)}%` : "";
+        const pct = percent != null ? `${signedFixed(percent, 2)}%` : "";
         if (pct) sub.push(s.showPriceRange ? `(${pct})` : pct);
       }
       parts.push(sub.join(" "));
     }
-    if (s.showPipsPriceRange) parts.push(signedFixed(Math.round(dPrice / pip), 0));
-    rows.push({ icon: "price", text: parts.join(", ") });
+    const pips = Math.round(dPrice / pip);
+    if (s.showPipsPriceRange) parts.push(signedFixed(pips, 0));
+    const text = parts.join(", ");
+    rows.push({
+      icon: "price",
+      text: labelOrDefault(coords, {
+        id: "price-range",
+        text,
+        change: dPrice,
+        percent,
+        pips,
+        digits,
+        price0: p0.price,
+        price1: p1.price,
+      }),
+    });
   }
   const showDate = withExtras && !!s.showDateTimeRange;
   const showDist = withExtras && !!s.showDistance;
   if (s.showBarsRange || showDate || showDist) {
-    let t = "";
+    const bits: { kind: "bars" | "span" | "dist"; text: string }[] = [];
     if (s.showBarsRange) {
       const i0 = coords ? coords.timeToBarIndex(p0.time) : null;
       const i1 = coords ? coords.timeToBarIndex(p1.time) : null;
-      t += `${i0 != null && i1 != null ? i1 - i0 : 0} bars`;
+      const nBars = i0 != null && i1 != null ? i1 - i0 : 0;
+      const barsText = `${nBars} bars`;
+      bits.push({ kind: "bars", text: labelOrDefault(coords, { id: "bars-range", text: barsText, bars: nBars }) });
     }
     if (showDate) {
       const aSec = timeToSec(p0.time);
       const bSec = timeToSec(p1.time);
-      const span = aSec != null && bSec != null ? tvTimeSpan(bSec - aSec) : "";
-      if (span) t += s.showBarsRange ? ` (${span})` : span;
+      const seconds = aSec != null && bSec != null ? bSec - aSec : null;
+      if (seconds != null) {
+        const span = tvTimeSpan(seconds);
+        if (span || coords?.formatLabel) {
+          bits.push({ kind: "span", text: labelOrDefault(coords, { id: "time-span", text: span, seconds }) });
+        }
+      }
     }
-    if (showDist) t += (t ? ", " : "") + `distance: ${Math.round(Math.hypot(b.x - a.x, b.y - a.y))} px`;
-    if (t) rows.push({ icon: "bars", text: t });
+    if (showDist) {
+      const distancePx = Math.round(Math.hypot(b.x - a.x, b.y - a.y));
+      const distText = `distance: ${distancePx} px`;
+      bits.push({ kind: "dist", text: labelOrDefault(coords, { id: "distance", text: distText, distancePx }) });
+    }
+    if (bits.length) {
+      if (bits.every((b) => b.text === "")) rows.push({ icon: "bars", text: "" });
+      else {
+        let t = "";
+        for (const b of bits) {
+          if (!b.text) continue;
+          if (b.kind === "bars") t += b.text;
+          else if (b.kind === "span") t += bits.some((x) => x.kind === "bars") ? ` (${b.text})` : b.text;
+          else t += (t ? ", " : "") + b.text;
+        }
+        if (t) rows.push({ icon: "bars", text: t });
+      }
+    }
   }
   if (withExtras && s.showAngle && Math.hypot(b.x - a.x, b.y - a.y) > 0) {
     const deg = (Math.atan2(-(b.y - a.y), b.x - a.x) * 180) / Math.PI;
-    rows.push({ icon: "angle", text: `${Math.round(deg * 100) / 100}º` });
+    const angleText = `${Math.round(deg * 100) / 100}º`;
+    rows.push({
+      icon: "angle",
+      text: labelOrDefault(coords, { id: "angle", text: angleText, degrees: deg }),
+    });
   }
   return rows;
 }
@@ -122,7 +165,8 @@ export function statsBoxItems(a: Pt, b: Pt, rows: StatRow[], position: 0 | 1 | 2
   const rowH = 18;
   const gap = 8;
   const pad = 12;
-  const textW = Math.max(...rows.map((r) => measureText(r.text, fs)));
+  const textWidths = rows.map((r) => measureText(r.text, fs));
+  const textW = textWidths.length ? Math.max(...textWidths) : 0;
   let bw = textW + pad * 2 + rowH + pad;
   if (Math.round(bw) % 2 !== 0) bw = Math.round(bw) + 1;
   const bh = rowH * rows.length + gap * (rows.length - 1) + pad * 2;
