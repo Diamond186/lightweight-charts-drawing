@@ -142,6 +142,8 @@ export class DrawingManager {
   private savedScroll: { handleScroll: unknown; handleScale: unknown } | null = null;
   /** Removers of the active gesture's window / document listeners (destroy() runs them). */
   private readonly gestureOff: (() => void)[] = [];
+  /** Ends a running dragToPlace watcher (listeners off, chart released); null when none runs. */
+  private dragPlaceOff: (() => void) | null = null;
   /** Remover of the touchmove guard of a touch / pen hold. */
   private touchGuardOff: (() => void) | null = null;
   private readonly off: (() => void)[] = [];
@@ -213,6 +215,7 @@ export class DrawingManager {
   }
   /** Cancel a half-placed drawing and its preview; the armed tool stays. No-op with nothing pending. */
   cancelPending(): void {
+    this.dragPlaceOff?.();
     if (!this.pending.length) return;
     this.pending = [];
     this.cursor = null;
@@ -628,14 +631,18 @@ export class DrawingManager {
   }
   /** A held gesture ends on pointerup AND pointercancel (the browser takes a touch gesture away with the
    *  latter): `done` runs once, both listeners are gone by then. */
-  private onRelease(t: EventTarget, done: (e: Event) => void): void {
-    const end = (e: Event) => {
+  private onRelease(t: EventTarget, done: (e: Event) => void): () => void {
+    const off = () => {
       rmUp();
       rmCancel();
+    };
+    const end = (e: Event) => {
+      off();
       done(e);
     };
     const rmUp = this.gestureListen(t, "pointerup", end);
     const rmCancel = this.gestureListen(t, "pointercancel", end);
+    return off;
   }
 
   private get shift(): boolean {
@@ -805,20 +812,32 @@ export class DrawingManager {
 
   /** dragToPlace: follow the pointer after the press that placed point 1; the release places point 2 when the
    *  pointer moved at least DRAG_THRESHOLD (else it was a click and point 1 stays pending). pointercancel
-   *  places nothing. */
+   *  places nothing. Like a click: Shift / Ctrl come from the pointer events and clampToPane keeps the point on
+   *  the pane; cancelPending() ends the watcher. */
   private dragPlace(spec: OverlaySpec, sp0: Pt): void {
+    const at = (ev: Event): Pt => {
+      this.pointerMods(ev as PointerEvent);
+      const p = this.panePoint(ev as PointerEvent);
+      return this.opts.clampToPane ? this.toPane(p) : p;
+    };
     const rmMove = this.gestureListen(document, "pointermove", (ev) => {
-      this.cursor = this.panePoint(ev as PointerEvent);
+      this.cursor = at(ev);
       this.redraw();
     });
-    this.onRelease(document, (ev) => {
+    const stop = () => {
       rmMove();
+      rmRelease();
+      this.dragPlaceOff = null;
       this.releaseChart();
+    };
+    const rmRelease = this.onRelease(document, (ev) => {
+      stop();
       // The tool or the pending point may be gone (Escape, setTool) while the button was down.
       if (ev.type === "pointercancel" || this.spec !== spec || this.pending.length !== 1) return;
-      const up = this.panePoint(ev as PointerEvent);
+      const up = at(ev);
       if (Math.hypot(up.x - sp0.x, up.y - sp0.y) >= DRAG_THRESHOLD) this.placementClick(up);
     });
+    this.dragPlaceOff = stop;
   }
 
   private finishVariable(closed: boolean): void {
