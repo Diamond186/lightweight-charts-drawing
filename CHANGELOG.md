@@ -19,6 +19,9 @@
   and the range tools (`text` = library join, `row`, `parts` = the piece labels); return
   `undefined` to keep the join. Position and forecast labels already carry all raw values and
   stay one label (rule and table in the code API reference).
+- `dragToPlace` option: press places point 1 and release places point 2 of a tool with two
+  or more fixed points; a movement under 3 px is a click, so click-click still works.
+  Default `false` keeps the current placement.
 
 ### Fixed
 
