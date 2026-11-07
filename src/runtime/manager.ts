@@ -60,6 +60,11 @@ export type DrawingManagerOptions = {
    *  press, drag and release (TV). A movement under 3 px is a click, so
    *  click-click still works. Default false (click placement only). */
   dragToPlace?: boolean;
+  /** Keep a placement and every drag inside the pane (TV): with a point
+   *  pending, a press outside the pane is accepted and lands on the nearest
+   *  pane edge; handle and body drags stop at the edge. Default false (a press
+   *  outside the pane is ignored). */
+  clampToPane?: boolean;
 };
 
 export type DrawingManagerEvents = {
@@ -502,6 +507,11 @@ export class DrawingManager {
     const s = this.chart.paneSize(idx);
     return { w: s.width, h: s.height };
   }
+  /** `p` moved onto the pane rect. */
+  private toPane(p: Pt): Pt {
+    const { w, h } = this.paneSize();
+    return { x: Math.min(Math.max(p.x, 0), w), y: Math.min(Math.max(p.y, 0), h) };
+  }
   /** Pointer position in pane coordinates. */
   private panePoint(e: MouseEvent): Pt {
     const paneEl = this.series.getPane().getHTMLElement();
@@ -682,9 +692,13 @@ export class DrawingManager {
     // isPrimary false or missing and stays on the old path.
     if (isTouchLike(e) && e.isPrimary === false) return;
     this.pointerMods(e);
-    const sp = this.panePoint(e);
+    let sp = this.panePoint(e);
     const { w, h } = this.paneSize();
-    if (sp.x < 0 || sp.x > w || sp.y < 0 || sp.y > h) return;
+    if (sp.x < 0 || sp.x > w || sp.y < 0 || sp.y > h) {
+      // Only a pending placement takes a press from outside the pane (clampToPane).
+      if (!(this.opts.clampToPane && this.spec && this.pending.length)) return;
+      sp = this.toPane(sp);
+    }
     if (this.spec) {
       e.stopPropagation();
       this.holdChart(e);
@@ -891,7 +905,8 @@ export class DrawingManager {
     };
     const move = (ev: PointerEvent) => {
       this.pointerMods(ev);
-      this.dragMove(this.panePoint(ev));
+      const cur = this.panePoint(ev);
+      this.dragMove(this.opts.clampToPane ? this.toPane(cur) : cur);
     };
     const rmMove = this.gestureListen(document, "pointermove", (ev) => move(ev as PointerEvent));
     const up = () => {

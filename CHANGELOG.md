@@ -22,6 +22,9 @@
 - `dragToPlace` option: press places point 1 and release places point 2 of a tool with two
   or more fixed points; a movement under 3 px is a click, so click-click still works.
   Default `false` keeps the current placement.
+- `clampToPane` option: with a point pending, a press outside the pane is accepted and lands
+  on the nearest pane edge (as in TradingView); handle and body drags stop at the edge.
+  Default `false` keeps the current behaviour (outside presses are ignored).
 
 ### Fixed
 
