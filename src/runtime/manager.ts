@@ -65,6 +65,10 @@ export type DrawingManagerOptions = {
    *  pane edge; handle and body drags stop at the edge. Default false (a press
    *  outside the pane is ignored). */
   clampToPane?: boolean;
+  /** Default true. false = view-only: drawings are painted but take no pointer input (no placement, selection,
+   *  drag, hover or double-click), nothing is held and no pointer event is stopped, so the chart pans and zooms
+   *  over them. Change it later with setInteractive(). */
+  interactive?: boolean;
 };
 
 export type DrawingManagerEvents = {
@@ -242,6 +246,16 @@ export class DrawingManager {
    *  repaint; `undefined` restores the library defaults. */
   setFormatLabel(fn: LabelFormatter | undefined): void {
     this.coords.formatLabel = fn;
+    this.redraw();
+  }
+  /** View-only switch (see the `interactive` option). Turning it off clears the hover and the preview cursor;
+   *  the selection, the armed tool and the drawings are left as they are. */
+  setInteractive(on: boolean): void {
+    this.opts.interactive = on;
+    if (on) return;
+    this.hoverCursor = null;
+    this.cursor = null;
+    this.setHover(null);
     this.redraw();
   }
 
@@ -453,6 +467,7 @@ export class DrawingManager {
     return this.hovered?.id ?? null;
   }
   cursorAt(): string | null {
+    if (this.opts.interactive === false) return null;
     if (this.spec) return "crosshair";
     if (this.gesture?.active) return this.gesture.mode.hit === "body" ? "move" : this.hoverCursor;
     return this.hoverCursor;
@@ -653,6 +668,7 @@ export class DrawingManager {
   }
 
   private onHover(e: PointerEvent): void {
+    if (this.opts.interactive === false) return;
     this.pointerMods(e);
     if (this.gesture || e.buttons) return;
     const sp = this.panePoint(e);
@@ -687,7 +703,7 @@ export class DrawingManager {
   }
 
   private onPointerDown(e: PointerEvent): void {
-    if (e.button !== 0) return;
+    if (this.opts.interactive === false || e.button !== 0) return;
     // A second finger belongs to the chart (pinch). Scoped to touch / pen: a synthetic mouse event may have
     // isPrimary false or missing and stays on the old path.
     if (isTouchLike(e) && e.isPrimary === false) return;
@@ -716,6 +732,7 @@ export class DrawingManager {
   }
 
   private onDoubleClick(e: MouseEvent): void {
+    if (this.opts.interactive === false) return;
     // Variable-length tools (polyline / path / ghost feed): a double-click
     // finishes the drawing.
     if (this.spec?.variableLength) {

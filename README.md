@@ -60,7 +60,9 @@ intraday of date labels), `stayInDrawingMode` (TV Keep drawing),
 (place the first two points of a tool by press, drag, release; a movement under 3 px is a click,
 so click-click still works; default `false`), `clampToPane`
 (a pending placement accepts a press outside the pane and clamps it to the pane edge; handle and
-body drags stop at the edge; default `false`).
+body drags stop at the edge; default `false`), `interactive`
+(default `true`; `false` = view-only: drawings paint but take no pointer input and no
+event is stopped, so the chart pans over them).
 
 ### Labels and number format
 
@@ -95,7 +97,7 @@ library defaults.
 |---|---|
 | `setTool(kind \| null, { glyph? })`, `tool()` | arm / disarm a tool (`kind` from docs/TOOLS.md) |
 | `cancelPending()` | cancel a half-placed drawing, the tool stays armed |
-| `setMagnet(mode)`, `setInterval(i)`, `setStayInDrawingMode(on)`, `setFormatLabel(fn \| undefined)` | settings |
+| `setMagnet(mode)`, `setInterval(i)`, `setStayInDrawingMode(on)`, `setInteractive(on)`, `setFormatLabel(fn \| undefined)` | settings |
 | `add(drawing)`, `update(drawing)`, `remove(id)`, `clear()`, `get(id)`, `drawings()` | drawings |
 | `setHidden(id, hidden)` | hide / show one drawing without removing it (the drawing's `hidden` flag, saved with it) |
 | `setDrawingsVisible(visible)`, `drawingsVisible()` | hide / show every drawing at once (TV "Hide all drawings"; not saved, the drawings are untouched) |

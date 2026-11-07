@@ -25,6 +25,10 @@
 - `clampToPane` option: with a point pending, a press outside the pane is accepted and lands
   on the nearest pane edge (as in TradingView); handle and body drags stop at the edge.
   Default `false` keeps the current behaviour (outside presses are ignored).
+- `interactive` option and `setInteractive(on)`: a view-only manager paints its drawings
+  but takes no pointer input (no placement, selection, drag, hover, double-click) and
+  stops no event, so the chart pans and zooms over them. Useful for a read-only or
+  phone view and for a host with several managers where only one is armed.
 
 ### Fixed
 
